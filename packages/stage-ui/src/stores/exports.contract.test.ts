@@ -39,6 +39,7 @@ describe('stage-ui exports contract', () => {
       './stores/analytics/posthog',
       './stores/analytics/privacy-policy',
       './stores/character',
+      './stores/devtools/cognition-heartbeat',
       './stores/modules/vision',
       './stores/providers/aliyun',
       './stores/settings',
@@ -58,6 +59,7 @@ describe('stage-ui exports contract', () => {
 
     expect(exportsMap['./stores']).toBe('./src/stores/index.ts')
     expect(exportsMap['./stores/*']).toBe('./src/stores/*.ts')
+    expect(exportsMap['./stores/devtools/cognition-heartbeat']).toBe('./src/stores/devtools/cognition-heartbeat.ts')
     expect(exportsMap['./types']).toBe('./src/types/index.ts')
     expect(exportsMap['./types/*']).toBe('./src/types/*.ts')
   })
