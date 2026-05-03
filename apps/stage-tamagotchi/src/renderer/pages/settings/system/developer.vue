@@ -44,12 +44,6 @@ const menu = computed(() => [
     to: '/devtools/context-flow',
   },
   {
-    title: 'Cognition Heartbeat',
-    description: 'Inspect the latest shared cognition winner, loop health, and backpressure',
-    icon: 'i-solar:heart-pulse-bold-duotone',
-    to: '/devtools/cognition-heartbeat',
-  },
-  {
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',
