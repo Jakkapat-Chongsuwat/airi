@@ -69,6 +69,12 @@ const menu = computed(() => [
     to: '/devtools/context-flow',
   },
   {
+    title: 'Cognition Heartbeat',
+    description: 'Inspect the latest shared cognition winner, loop health, and backpressure',
+    icon: 'i-solar:heart-pulse-bold-duotone',
+    to: '/devtools/cognition-heartbeat',
+  },
+  {
     title: 'WebSocket Inspector',
     description: 'Inspect raw WebSocket traffic',
     icon: 'i-solar:transfer-horizontal-bold-duotone',
