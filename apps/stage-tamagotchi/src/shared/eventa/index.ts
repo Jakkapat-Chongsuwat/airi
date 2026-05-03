@@ -28,10 +28,22 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
+/**
+ * Readable desktop server-channel configuration returned to the renderer.
+ */
 export interface ElectronServerChannelConfig {
+  /** TLS configuration persisted for the desktop server channel. */
   tlsConfig?: ServerOptions['tlsConfig'] | null
+  /** Auth token required by remote clients. */
   authToken: string
+  /** Hostname currently configured for the server channel listener. */
   hostname: string
+  /** Preferred runtime port before any automatic fallback is applied. */
+  preferredPort?: number
+  /** Effective runtime port currently used by the desktop server channel. */
+  runtimePort?: number
+  /** How the current runtime port was chosen for the active session. */
+  runtimePortSource?: 'default' | 'env' | 'fallback'
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')

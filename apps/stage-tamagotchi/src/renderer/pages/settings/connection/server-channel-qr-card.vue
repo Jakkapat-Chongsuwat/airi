@@ -14,7 +14,14 @@ import { useServerChannelSettingsStore } from '../../../stores/settings/server-c
 
 const { t } = useI18n()
 const getServerChannelQrPayload = useElectronEventaInvoke(electronGetServerChannelQrPayload)
-const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
+const {
+  authToken,
+  hostname,
+  preferredPort,
+  runtimePort,
+  runtimePortSource,
+  tlsConfig,
+} = storeToRefs(useServerChannelSettingsStore())
 
 const loading = shallowRef(false)
 const payload = shallowRef<ServerChannelQrPayload>()
@@ -54,6 +61,13 @@ const qrCodeSource = computed(() => {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 })
 
+const usingFallbackPort = computed(() => {
+  return runtimePortSource.value === 'fallback'
+    && runtimePort.value != null
+    && preferredPort.value != null
+    && runtimePort.value !== preferredPort.value
+})
+
 async function refreshPayload() {
   loading.value = true
   errorMessage.value = ''
@@ -73,6 +87,10 @@ async function refreshPayload() {
 watch([hostname, tlsConfig, authToken], () => {
   void refreshPayload()
 }, { immediate: true })
+
+watch([runtimePort], () => {
+  void refreshPayload()
+})
 </script>
 
 <template>
@@ -112,7 +130,25 @@ watch([hostname, tlsConfig, authToken], () => {
         <p :class="['m-0 text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.connection.qr.token-hint') }}
         </p>
+        <div :class="['shrink-0 rounded-lg bg-neutral-100/80 px-3 py-2 text-right text-xs dark:bg-neutral-800/80']">
+          <div :class="['font-medium text-neutral-700 dark:text-neutral-100']">
+            {{ t('settings.pages.connection.qr.runtime-port') }}
+          </div>
+          <div :class="['font-mono text-neutral-600 dark:text-neutral-300']">
+            {{ runtimePort ?? preferredPort ?? 'n/a' }}
+          </div>
+        </div>
       </div>
+
+      <Callout
+        v-if="usingFallbackPort"
+        theme="orange"
+        :label="t('settings.pages.connection.qr.fallback.title')"
+      >
+        <p :class="['m-0 text-xs leading-5']">
+          {{ t('settings.pages.connection.qr.fallback.description', { preferredPort, runtimePort }) }}
+        </p>
+      </Callout>
 
       <Callout
         v-if="errorMessage"

@@ -1237,11 +1237,17 @@ pages:
       title: Подключиться из Stage Pocket
       description: >-
         Сканируйте этот QR-код из Stage Pocket, чтобы попробовать все доступные адреса локальной сети и сохранить первый рабочий.
+      runtime-port: Active AIRI gateway port
       refresh: Обновить
       image-alt: QR-код соединения с сервером AIRI
       candidates: Адреса кандидаты
       token-hint: >-
         QR-код включает в себя токен авторизации, чтобы Stage Pocket мог пройти аутентификацию после подключения. Не делитесь этим публично.
+      fallback:
+        title: Port fallback active
+        description: >-
+          Preferred port {preferredPort} is busy, so AIRI is using port {runtimePort}
+          for this session. The candidate addresses below already use the active port.
       errors:
         title: QR-код недоступен
         unavailable: Не удалось подготовить QR-код подключения.

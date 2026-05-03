@@ -17,6 +17,9 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   const tlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null | undefined>('settings/server-channel/websocket-tls-config', null)
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
+  const preferredPort = ref<number | null>(null)
+  const runtimePort = ref<number | null>(null)
+  const runtimePortSource = ref<ElectronServerChannelConfig['runtimePortSource']>('default')
   const lastApplyError = ref<string | null>(null)
   const syncingWithServer = ref(false)
 
@@ -32,6 +35,9 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
     if (config.authToken !== undefined) {
       authToken.value = config.authToken
     }
+    preferredPort.value = config.preferredPort ?? null
+    runtimePort.value = config.runtimePort ?? config.preferredPort ?? null
+    runtimePortSource.value = config.runtimePortSource ?? 'default'
     syncingWithServer.value = false
   }
 
@@ -78,5 +84,8 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
     tlsConfig,
     hostname,
     authToken,
+    preferredPort,
+    runtimePort,
+    runtimePortSource,
   }
 })
