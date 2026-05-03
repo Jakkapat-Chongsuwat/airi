@@ -29,6 +29,12 @@ import {
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
 import { ensureServerChannelConfigDefaults } from './config'
+import {
+  findAvailableServerChannelPort,
+  isServerChannelAddressInUse,
+  resolveConfiguredServerChannelPort,
+  withServerChannelPort,
+} from './runtime-port'
 
 const channelServerConfigSchema = object({
   hostname: optional(string()),
@@ -74,10 +80,6 @@ interface ServerChannelCertificateVerifyRequest {
   }
 }
 
-function getServerChannelPort() {
-  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
-}
-
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 
 function isLoopbackHost(host: string) {
@@ -98,17 +100,17 @@ function getServerChannelQrHosts(config: ElectronServerChannelConfig, serverChan
   return [config.hostname]
 }
 
-function createServerChannelUrl(protocol: 'ws' | 'wss', host: string) {
+function createServerChannelUrl(protocol: 'ws' | 'wss', host: string, port: number) {
   const urlHost = isIP(host) === 6 ? `[${host}]` : host
   // TODO: Deduplicate the server channel websocket path with `packages/server-runtime/src/index.ts`
   // and `packages/server-sdk/src/client.ts` so this does not rely on three separate `/ws` literals.
-  return `${protocol}://${urlHost}:${getServerChannelPort()}/ws`
+  return `${protocol}://${urlHost}:${port}/ws`
 }
 
-function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverChannel: Server) {
+function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverChannel: ServerChannel) {
   const protocol = config.tlsConfig ? 'wss' : 'ws'
   const urls = getServerChannelQrHosts(config, serverChannel)
-    .map(host => createServerChannelUrl(protocol, host))
+    .map(host => createServerChannelUrl(protocol, host, serverChannel.getCurrentPort()))
 
   if (!urls.length) {
     throw new Error('No reachable private LAN address is available for the current server channel host.')
@@ -132,16 +134,31 @@ async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
   }
 }
 
-function getServerRuntimeBaseOptions() {
+function withRuntimeServerChannelConfig(
+  config: ElectronServerChannelConfig,
+  serverChannel: ServerChannel,
+): ElectronServerChannelConfig {
+  const preferredPort = resolveConfiguredServerChannelPort(env.SERVER_CHANNEL_PORT)
+  const runtimePort = serverChannel.getCurrentPort()
+
   return {
-    port: getServerChannelPort(),
+    ...config,
+    preferredPort: preferredPort.port,
+    runtimePort,
+    runtimePortSource: runtimePort === preferredPort.port ? preferredPort.source : 'fallback',
+  }
+}
+
+function getServerRuntimeBaseOptions(port: number) {
+  return {
+    port,
     hostname: '127.0.0.1',
   }
 }
 
-async function resolveServerRuntimeOptions(config: ServerOptions): Promise<ServerOptions> {
+async function resolveServerRuntimeOptions(config: ServerOptions, port: number): Promise<ServerOptions> {
   return {
-    ...getServerRuntimeBaseOptions(),
+    ...getServerRuntimeBaseOptions(port),
     auth: {
       token: 'authToken' in config && typeof config.authToken === 'string' ? config.authToken : '',
     },
@@ -354,7 +371,7 @@ async function getOrCreateCertificate() {
   return { cert: withCertificateChain(cert, caCert), key }
 }
 
-export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
+export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<ServerChannel> {
   channelServerConfigStore.setup()
   configureServerChannelCertificateTrust()
 
@@ -364,9 +381,41 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     channelServerConfigStore.update(normalizedStoredConfig)
   }
 
-  const serverChannel = createServer(await resolveServerRuntimeOptions(normalizedStoredConfig))
+  const configuredPort = resolveConfiguredServerChannelPort(env.SERVER_CHANNEL_PORT)
+  let currentServerChannelPort = configuredPort.port
+  let currentRuntimeOptions = await resolveServerRuntimeOptions(normalizedStoredConfig, currentServerChannelPort)
+  const serverChannel = createServer(currentRuntimeOptions)
 
   const mutex = new Mutex()
+
+  async function startServerChannel() {
+    const log = useLogg('main/server-runtime').useGlobalConfig()
+
+    try {
+      await serverChannel.start()
+    }
+    catch (error) {
+      if (!isServerChannelAddressInUse(error) || configuredPort.source === 'env') {
+        throw error
+      }
+
+      const fallbackPort = await findAvailableServerChannelPort({
+        hostname: currentRuntimeOptions.hostname ?? '127.0.0.1',
+        preferredPort: currentServerChannelPort,
+      })
+
+      currentServerChannelPort = fallbackPort
+      currentRuntimeOptions = withServerChannelPort(currentRuntimeOptions, fallbackPort)
+      await serverChannel.updateConfig(currentRuntimeOptions)
+
+      log.withFields({
+        preferredPort: configuredPort.port,
+        fallbackPort,
+      }).warn('Preferred server channel port is busy, falling back to another local port')
+
+      await serverChannel.start()
+    }
+  }
 
   params.lifecycle.appHooks.onStart(async () => {
     const release = await mutex.acquire()
@@ -374,8 +423,8 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     const log = useLogg('main/server-runtime').useGlobalConfig()
 
     try {
-      await serverChannel.start()
-      log.log('WebSocket server started')
+      await startServerChannel()
+      log.withFields({ port: currentServerChannelPort }).log('WebSocket server started')
     }
     catch (error) {
       log.withError(error).error('Error starting WebSocket server')
@@ -408,10 +457,13 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     getConnectionHost() {
       return serverChannel.getConnectionHost()
     },
+    getCurrentPort() {
+      return currentServerChannelPort
+    },
     async start() {
       const release = await mutex.acquire()
       try {
-        await serverChannel.start()
+        await startServerChannel()
       }
       finally {
         release()
@@ -421,7 +473,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
       const release = await mutex.acquire()
       try {
         await serverChannel.stop()
-        await serverChannel.start()
+        await startServerChannel()
       }
       finally {
         release()
@@ -439,6 +491,8 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     async updateConfig(config) {
       const release = await mutex.acquire()
       try {
+        currentRuntimeOptions = config
+        currentServerChannelPort = config.port ?? currentServerChannelPort
         await serverChannel.updateConfig(config)
       }
       finally {
@@ -448,7 +502,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
   }
 }
 
-export async function createServerChannelService(params: { serverChannel: Server }) {
+export async function createServerChannelService(params: { serverChannel: ServerChannel }) {
   if (serverChannelServiceRegistered) {
     return
   }
@@ -457,7 +511,7 @@ export async function createServerChannelService(params: { serverChannel: Server
   const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    return await getChannelServerConfig()
+    return withRuntimeServerChannelConfig(await getChannelServerConfig(), params.serverChannel)
   })
 
   defineInvokeHandler(context, electronGetServerChannelQrPayload, async () => {
@@ -475,7 +529,7 @@ export async function createServerChannelService(params: { serverChannel: Server
 
     try {
       if (runtimeChanged) {
-        const nextRuntimeOptions = await resolveServerRuntimeOptions(next)
+        const nextRuntimeOptions = await resolveServerRuntimeOptions(next, resolveConfiguredServerChannelPort(env.SERVER_CHANNEL_PORT).port)
 
         await params.serverChannel.updateConfig(nextRuntimeOptions)
         await params.serverChannel.restart()
@@ -485,12 +539,12 @@ export async function createServerChannelService(params: { serverChannel: Server
       }
 
       channelServerConfigStore.update(next)
-      return next
+      return withRuntimeServerChannelConfig(next, params.serverChannel)
     }
     catch (error) {
       useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
       if (runtimeChanged) {
-        const previousRuntimeOptions = await resolveServerRuntimeOptions(current)
+        const previousRuntimeOptions = await resolveServerRuntimeOptions(current, resolveConfiguredServerChannelPort(env.SERVER_CHANNEL_PORT).port)
 
         try {
           await params.serverChannel.updateConfig(previousRuntimeOptions)
@@ -506,4 +560,6 @@ export async function createServerChannelService(params: { serverChannel: Server
   })
 }
 
-export type { Server as ServerChannel }
+export type ServerChannel = Server & {
+  getCurrentPort: () => number
+}

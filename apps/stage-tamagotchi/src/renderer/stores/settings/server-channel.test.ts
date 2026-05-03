@@ -6,6 +6,9 @@ const invokeMocks = vi.hoisted(() => {
   const getConfig = vi.fn(async () => ({
     authToken: 'existing-token',
     hostname: '127.0.0.1',
+    preferredPort: 6121,
+    runtimePort: 6121,
+    runtimePortSource: 'default',
     tlsConfig: null,
   }))
   const applyConfig = vi.fn(async (config: unknown) => config)
@@ -79,6 +82,26 @@ describe('useServerChannelSettingsStore', async () => {
       expect(store.tlsConfig).toBeNull()
       expect(store.lastApplyError).toBe('apply failed')
       expect(toastError).toHaveBeenCalledWith('apply failed')
+    })
+  })
+
+  it('tracks the effective runtime port returned by the desktop process', async () => {
+    invokeMocks.getConfig.mockResolvedValueOnce({
+      authToken: 'existing-token',
+      hostname: '127.0.0.1',
+      preferredPort: 6121,
+      runtimePort: 6122,
+      runtimePortSource: 'fallback',
+      tlsConfig: null,
+    })
+
+    const store = useServerChannelSettingsStore()
+    await Promise.resolve()
+
+    await vi.waitFor(() => {
+      expect(store.preferredPort).toBe(6121)
+      expect(store.runtimePort).toBe(6122)
+      expect(store.runtimePortSource).toBe('fallback')
     })
   })
 })

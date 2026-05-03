@@ -1237,11 +1237,17 @@ pages:
       title: 从 Pocket（口袋）版配对
       description: >-
         从 Pocket（口袋）版扫描此二维码以进行配对
+      runtime-port: Active AIRI gateway port
       refresh: 刷新
       image-alt: AIRI 配对码
       candidates: 备选连接地址
       token-hint: >-
         二维码包含了认证凭据，所以 Pocket（口袋）版可以自动配对，请不要公开分享此二维码。
+      fallback:
+        title: Port fallback active
+        description: >-
+          Preferred port {preferredPort} is busy, so AIRI is using port {runtimePort}
+          for this session. The candidate addresses below already use the active port.
       errors:
         title: 二维码暂不可用
         unavailable: 无法生成配对二维码

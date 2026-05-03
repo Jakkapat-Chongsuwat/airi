@@ -1237,11 +1237,17 @@ pages:
       title: Connect from Stage Pocket
       description: >-
         Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      runtime-port: Active AIRI gateway port
       refresh: Refresh
       image-alt: AIRI server channel connection QR code
       candidates: Candidate addresses
       token-hint: >-
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      fallback:
+        title: Port fallback active
+        description: >-
+          Preferred port {preferredPort} is busy, so AIRI is using port {runtimePort}
+          for this session. The candidate addresses below already use the active port.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
