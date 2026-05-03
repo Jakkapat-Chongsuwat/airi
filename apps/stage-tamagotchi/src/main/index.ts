@@ -16,8 +16,7 @@ import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
-import icon from '../../resources/icon.png?asset'
-
+import { mainProcessIconAssetPath } from './app/assets'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { createArtistryConfig } from './configs/artistry'
@@ -84,7 +83,7 @@ if (isLinux) {
   }
 }
 
-app.dock?.setIcon(icon)
+app.dock?.setIcon(mainProcessIconAssetPath)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
 initScreenCaptureForMain()
@@ -156,8 +155,19 @@ app.whenReady().then(async () => {
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
 
-  // BeatSync will create a background window to capture and process audio.
-  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+  let beatSyncWindowPromise: Promise<Awaited<ReturnType<typeof setupBeatSync>>> | undefined
+  function getBeatSyncWindow() {
+    if (beatSyncWindowPromise) {
+      return beatSyncWindowPromise
+    }
+
+    beatSyncWindowPromise = setupBeatSync().catch((error) => {
+      beatSyncWindowPromise = undefined
+      throw error
+    })
+
+    return beatSyncWindowPromise
+  }
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
@@ -182,12 +192,12 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -197,8 +207,11 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
-    build: async ({ dependsOn }) => setupTray(dependsOn),
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, aboutWindow, i18n },
+    build: async ({ dependsOn }) => setupTray({
+      ...dependsOn,
+      openBeatSyncDevtools: async () => (await getBeatSyncWindow()).webContents.openDevTools({ mode: 'detach' }),
+    }),
   })
 
   // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
@@ -228,6 +241,9 @@ app.whenReady().then(async () => {
       })
     },
   })
+
+  // Warm BeatSync in the background so the hidden helper window no longer blocks desktop startup.
+  void getBeatSyncWindow()
 
   injeca.start().catch(err => console.error(err))
 
