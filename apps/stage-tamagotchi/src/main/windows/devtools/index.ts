@@ -2,8 +2,7 @@ import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
 
-import icon from '../../../../resources/icon.png?asset'
-
+import { mainProcessIconAssetPath } from '../../app/assets'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 
@@ -34,7 +33,7 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
         minWidth: 640,
         minHeight: 480,
         show: false,
-        icon,
+        icon: mainProcessIconAssetPath,
         webPreferences: {
           preload: join(getElectronMainDirname(), '../preload/index.mjs'),
           // Preload exposes Electron APIs and needs Node access.

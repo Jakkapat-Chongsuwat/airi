@@ -3,7 +3,6 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
-import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
 import type { SettingsWindowManager } from '../windows/settings'
 import type { WidgetsWindowManager } from '../windows/widgets'
@@ -17,9 +16,7 @@ import { app, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
-import icon from '../../../resources/icon.png?asset'
-import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
-
+import { mainProcessIconAssetPath, mainProcessMacOSTrayIconAssetPath } from '../app/assets'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { setupInlayWindow } from '../windows/inlay'
 import { toggleWindowShow } from '../windows/shared/window'
@@ -92,13 +89,13 @@ export function setupTray(params: {
   settingsWindow: SettingsWindowManager
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
-  beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
+  openBeatSyncDevtools: () => Promise<void>
   aboutWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
 }): void {
   once(() => {
-    const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
+    const trayImage = nativeImage.createFromPath(isMacOS ? mainProcessMacOSTrayIconAssetPath : mainProcessIconAssetPath).resize({ width: 16 })
     trayImage.setTemplateImage(isMacOS)
 
     const appTray = new Tray(trayImage)
@@ -211,7 +208,7 @@ export function setupTray(params: {
         ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
           ? [
               { type: 'header', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.devtools') },
-              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools({ mode: 'detach' }) },
+              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => void params.openBeatSyncDevtools() },
               { type: 'separator' },
             ] as const
           : [],
