@@ -46,7 +46,7 @@ const menu = computed(() => [
   {
     title: 'Cognition Heartbeat',
     description: 'Inspect the latest shared cognition winner, loop health, and backpressure',
-    icon: 'i-solar:heart-pulse-bold-duotone',
+    icon: 'i-solar:heartbeat-bold-duotone',
     to: '/devtools/cognition-heartbeat',
   },
   {

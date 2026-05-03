@@ -1,6 +1,6 @@
 import type { BroadcastWinner, CognitiveWorkspaceSnapshot, WorkspaceChunk } from '../types'
 
-import { WORKSPACE_MAX_CHUNKS } from '../constants'
+import { WORKSPACE_MAX_CHUNKS, WORKSPACE_MIN_CHUNKS } from '../constants'
 import { selectWorkspaceWinner } from '../tournament/placeholder'
 
 export interface WorkspaceClock {
@@ -59,7 +59,10 @@ function isWinnerActive(winner: BroadcastWinner | null, chunks: WorkspaceChunk[]
  * - A bounded workspace API that trims overflow and prunes expired chunks
  */
 export function createCognitiveWorkspace(options: CognitiveWorkspaceOptions = {}): CognitiveWorkspace {
-  const maxChunks = Math.min(Math.max(options.maxChunks ?? WORKSPACE_MAX_CHUNKS, 1), WORKSPACE_MAX_CHUNKS)
+  const maxChunks = Math.min(
+    Math.max(options.maxChunks ?? WORKSPACE_MAX_CHUNKS, WORKSPACE_MIN_CHUNKS),
+    WORKSPACE_MAX_CHUNKS,
+  )
 
   let chunks: WorkspaceChunk[] = []
   let lastWinner: BroadcastWinner | null = null

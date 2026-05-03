@@ -25,5 +25,14 @@ Run the focused package suite from the AIRI repo root:
 
 ```bash
 pnpm exec vitest run packages/cognition-core/src/heartbeat/scheduler.test.ts packages/cognition-core/src/workspace/workspace.test.ts packages/cognition-core/src/tournament/placeholder.test.ts packages/cognition-core/src/loops/registry.test.ts packages/cognition-core/src/integration/workspace-events.integration.test.ts
+pnpm exec vitest run packages/cognition-core/src/architecture/cognition-boundaries.arch.test.ts
 pnpm -F @proj-airi/cognition-core typecheck
 ```
+
+Run maintained-surface smoke coverage from the same repo root:
+
+```bash
+pnpm exec vitest run apps/stage-web/src/pages/settings/system/developer.test.ts apps/stage-tamagotchi/src/renderer/pages/settings/system/developer.test.ts
+```
+
+Architecture coverage now includes fixture-driven owner-boundary, forbidden-import, and forbidden-threshold checks under `src/architecture/` so Phase A can stay additive while later cognition loops are still out of scope.

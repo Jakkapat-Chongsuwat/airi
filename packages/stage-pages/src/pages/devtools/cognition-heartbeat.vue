@@ -33,6 +33,27 @@ const summaryCards = computed(() => {
 
 const currentWorkspaceStatus = computed(() => store.latestTick?.workspaceStatus ?? 'idle')
 const currentWorkspaceStatusChipClasses = computed(() => statusChipClasses(currentWorkspaceStatus.value))
+const runtimeStatusChipClasses = computed(() => {
+  if (store.runtimeActive) {
+    return [
+      'border-emerald-300',
+      'bg-emerald-100',
+      'text-emerald-700',
+      'dark:border-emerald-700',
+      'dark:bg-emerald-900/50',
+      'dark:text-emerald-200',
+    ]
+  }
+
+  return [
+    'border-neutral-300',
+    'bg-neutral-100',
+    'text-neutral-700',
+    'dark:border-neutral-700',
+    'dark:bg-neutral-900/60',
+    'dark:text-neutral-200',
+  ]
+})
 
 const winnerEntries = computed(() => {
   if (!store.currentWinner) {
@@ -237,11 +258,29 @@ function loadSampleTick() {
 <template>
   <div :class="['flex', 'h-full', 'flex-col', 'gap-4', 'overflow-y-auto', 'p-4']">
     <div :class="['flex', 'flex-wrap', 'gap-2']">
+      <div
+        role="status"
+        :class="[
+          'inline-flex',
+          'items-center',
+          'gap-2',
+          'rounded-xl',
+          'border',
+          'px-3',
+          'py-2',
+          'text-sm',
+          'font-medium',
+          ...runtimeStatusChipClasses,
+        ]"
+      >
+        <div :class="['text-base', 'i-solar:heartbeat-bold-duotone']" />
+        <span>{{ store.runtimeActive ? 'Heartbeat runtime active' : 'Heartbeat runtime idle' }}</span>
+      </div>
       <Button
-        :label="store.runtimeActive ? 'Heartbeat runtime active' : 'Start heartbeat runtime'"
-        icon="i-solar:heartbeat-bold-duotone"
+        v-if="!store.runtimeActive"
+        label="Start heartbeat runtime"
+        icon="i-solar:play-bold-duotone"
         variant="secondary"
-        :disabled="store.runtimeActive"
         @click="store.initializeRuntime()"
       />
       <Button
@@ -262,7 +301,7 @@ function loadSampleTick() {
       v-if="!store.hasTick"
       theme="orange"
       label="No cognition heartbeat yet."
-      description="This page fills in when the runtime pushes heartbeat events into the shared store. The page starts the shared heartbeat runtime on mount, and Load sample tick is still available as a manual preview override."
+      description="This page fills in when the runtime pushes heartbeat events into the shared store. The page starts the shared heartbeat runtime on mount, and Load sample tick is still available as a manual preview override if the runtime is idle or you want a quick local sample."
     />
 
     <template v-else>
