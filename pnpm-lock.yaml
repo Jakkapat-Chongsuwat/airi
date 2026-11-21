@@ -2415,6 +2415,22 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
 
+  packages/cognition-core:
+    dependencies:
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
+    devDependencies:
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.21.9(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2))(publint@0.3.18)(synckit@0.11.12)(typescript@5.9.3)(unplugin-unused@0.5.7)(vue-tsc@3.2.6(typescript@5.9.3))
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/core-agent:
     dependencies:
       '@moeru/std':
